@@ -120,6 +120,9 @@ ttest %>% arrange(p.value)
 ##worked have the highest level of significance
 
 #logistic regression
+
+set.seed(1982, sample.kind = "Rounding")
+
 test_index = createDataPartition(the_data$income, p = 0.5, list = FALSE)
 train_set <- the_data[-test_index, ]
 test_set <- the_data[test_index, ]
