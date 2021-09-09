@@ -82,7 +82,7 @@ the_data %>% group_by(native_country) %>%
            stat = "identity", fill = "red") + 
   theme(axis.text.x = element_text(angle = 90, size = 8)) + 
   xlab("Native country") + 
-  ylab("Ratio with income>50K") + coord_flip()
+  ylab("Ratio with income<=50K") + coord_flip()
 
 ##calculate chi-square statistics for categorical variables
 chi <- lapply(the_data[, sapply(the_data, is.factor) & colnames(the_data) != "income"], function(x) {
