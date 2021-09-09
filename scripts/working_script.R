@@ -106,6 +106,7 @@ compare_avgs <- lapply(the_data[, sapply(the_data, is.numeric)], function(x) {
 compare_avgs <- do.call(rbind, compare_avgs)
 compare_avgs <- data.frame(compare_avgs)
 compare_avgs$avg <- format(compare_avgs$avg, scientific = FALSE)
+compare_avgs
 ## we see that people who make >50K are older, more 
 ## educated, and work more
 ##now calculate ttest statistics for these numeric variables
