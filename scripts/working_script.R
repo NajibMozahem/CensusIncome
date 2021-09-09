@@ -1,5 +1,5 @@
 ## install libraries
-packages <- c("tidyverse", "dplyr", "caret")
+packages <- c("tidyverse", "dplyr", "caret", "randomForest")
 
 lapply(packages, function(x) {
   if (!require(x, character.only = TRUE)) {
@@ -153,8 +153,8 @@ model_log <- train(income ~ ., data = train_set,
                    method = "glm", family = "binomial",
                    trControl = trainControl(method = "cv",
                                             number = 5))
-pred_log <- predict(model_log, test_set)
-results_log <- confusionMatrix(pred_log, test_set$income)
+predict_log <- predict(model_log, test_set)
+results_log <- confusionMatrix(predict_log, test_set$income)
 
 model_knn <- train(income ~ ., data = train_set,
                    method = "knn",
@@ -163,4 +163,61 @@ model_knn <- train(income ~ ., data = train_set,
                    tuneGrid = expand.grid(k = seq(2, 50, 1)))
 ggplot(model_knn, highlight = TRUE)
 predict_knn <- predict(model_knn, test_set)
-results_knn <- confusionMatrix(pred_knn, test_set$income)
+results_knn <- confusionMatrix(predict_knn, test_set$income)
+
+model_rf <- train(income ~ ., data = train_set,
+                   method = "rf",
+                   trControl = trainControl(method = "cv",
+                                            number = 5),
+                  tuneGrid = expand.grid(.mtry = c(1:15)))
+ggplot(model_rf, highlight = TRUE)
+predict_rf <- predict(model_rf, test_set)
+results_rf <- confusionMatrix(predict_rf, test_set$income)
+
+##ensemble
+ensemble_data <- data.frame(Logistic = predict_log, 
+                            Knn = predict_knn, 
+                            Randomforest = predict_rf)
+ensemble_data$vote <- rowSums(ensemble_data == ">50K")
+ensemble_data$ensemble <- ifelse(ensemble_data$vote > 1, ">50K", "<=50K")
+ensemble_data$ensemble <- factor(ensemble_data$ensemble, levels=levels(test_set$income))
+results_ensemble <- confusionMatrix(ensemble_data$ensemble, test_set$income)
+
+results <- data.frame(Model = "Logistic", 
+                      Accuracy = results_log$overall["Accuracy"],
+                      Sensitivity = results_log$byClass[1],
+                      Specificity = results_log$byClass[2])
+results <- results %>% add_row(Model = "KNN",  
+                               Accuracy = results_knn$overall["Accuracy"],
+                               Sensitivity = results_knn$byClass[1],
+                               Specificity = results_knn$byClass[2])
+results <- results %>% add_row(Model = "Random Forest",  
+                               Accuracy = results_rf$overall["Accuracy"],
+                               Sensitivity = results_rf$byClass[1],
+                               Specificity = results_rf$byClass[2])
+results <- results %>% add_row(Model = "Ensemble",  
+                               Accuracy = results_ensemble$overall["Accuracy"],
+                               Sensitivity = results_ensemble$byClass[1],
+                               Specificity = results_ensemble$byClass[2])
+results
+## seems the random forest is the best overall
+## get the best tune mtry to use in randomForest() function
+## so that we can get the variable importance
+mtry_best <- model_rf$bestTune$mtry
+
+model_randomForest <- randomForest(income ~ ., data = test_set,
+                                   mtry = mtry_best)
+as.data.frame(importance(model_randomForest)) %>% 
+  rownames_to_column("Variable") %>% 
+  ggplot() + geom_bar(aes(reorder(Variable, -MeanDecreaseGini), 
+                          MeanDecreaseGini), 
+                      stat = "identity", fill = "blue") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        axis.title.y = element_text(size = 8),
+        axis.title.x = element_text(size = 8)) + 
+  xlab("Variables")
+
+fourfoldplot(results_rf$table,
+             color = c("#CC6666", "#99CC99"),
+             conf.level = 0,
+             main = "Random Forest Confusion Matrix")
